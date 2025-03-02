@@ -30,10 +30,10 @@ if 'userinfo' not in st.session_state:
 # Handle the OAuth callback (when the user is redirected back to the app after login)
 query_params = st.query_params
 if 'code' in query_params:
-    code = query_params['code'][0]
+    code = query_params['code'][0]  # Extract the authorization code
     
     try:
-        # Exchange the authorization code for an access token, sending the client_id and client_secret in the POST body
+        # Exchange the authorization code for an access token
         token = oauth.fetch_token(
             "https://oauth2.googleapis.com/token",
             code=code,
@@ -58,7 +58,7 @@ if 'code' in query_params:
         st.write(f"Error details: {e.error}")
         st.write(f"Error description: {e.description}")
         # Check if e.response exists before accessing it
-        if e.response:
+        if hasattr(e, 'response') and e.response:
             st.write(f"Error response: {e.response.json()}")
     
 # Display the app content only if the user is logged in
