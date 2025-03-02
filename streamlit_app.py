@@ -1,5 +1,6 @@
 import streamlit as st
 from authlib.integrations.requests_client import OAuth2Session
+from authlib.integrations.base_client.errors import OAuthError
 
 # App title
 st.title("Streamlit App with Google Login")
@@ -31,22 +32,30 @@ query_params = st.query_params
 if 'code' in query_params:
     code = query_params['code'][0]
     
-    # Exchange the authorization code for an access token
-    token = oauth.fetch_token(
-        "https://oauth2.googleapis.com/token",
-        authorization_response=f"{redirect_uri}?code={code}",
-        client_secret=client_secret,
-    )
-    
-    # Fetch user profile information from Google
-    userinfo = oauth.get("https://www.googleapis.com/oauth2/v3/userinfo").json()
+    try:
+        # Exchange the authorization code for an access token
+        token = oauth.fetch_token(
+            "https://oauth2.googleapis.com/token",
+            authorization_response=f"{redirect_uri}?code={code}",
+            client_secret=client_secret,
+        )
+        
+        # Fetch user profile information from Google
+        userinfo = oauth.get("https://www.googleapis.com/oauth2/v3/userinfo").json()
 
-    # Store user info in session state
-    st.session_state['userinfo'] = userinfo
+        # Store user info in session state
+        st.session_state['userinfo'] = userinfo
 
-    # Display user info
-    st.success(f"Logged in as {userinfo['name']}")
-    st.image(userinfo['picture'], width=100)
+        # Display user info
+        st.success(f"Logged in as {userinfo['name']}")
+        st.image(userinfo['picture'], width=100)
+        
+    except OAuthError as e:
+        # Display a user-friendly error message
+        st.error("An error occurred during the login process. Please try again.")
+        st.write(f"Error details: {e.error}")
+        st.write(f"Error description: {e.description}")
+        st.write(f"Error response: {e.response.json()}")
     
 # Display the app content only if the user is logged in
 if 'userinfo' in st.session_state:
