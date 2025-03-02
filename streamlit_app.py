@@ -1,32 +1,33 @@
 import streamlit as st
-from auth import Authenticator
+from requests_oauthlib import OAuth2Session
+import os
 
-# Retrieve secrets from Streamlit's secrets management
-allowed_users = st.secrets["ALLOWED_USERS"].split(",")
-token_key = st.secrets["TOKEN_KEY"]
-client_secret = st.secrets["client_secret"]
-redirect_uri = st.secrets["REDIRECT_URI"]
+# Retrieve Google OAuth credentials from Streamlit secrets
+GOOGLE_CLIENT_ID = st.secrets["GOOGLE_CLIENT_ID"]
+GOOGLE_CLIENT_SECRET = st.secrets["GOOGLE_CLIENT_SECRET"]
+REDIRECT_URI = st.secrets["REDIRECT_URI"]
 
-st.title("Streamlit Google Auth")
+AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/auth"
+TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-# Write the client secret json data into a temporary file
-with open("client_secret_temp.json", "w") as secret_file:
-    secret_file.write(client_secret)
+# OAuth2Session object for login
+def create_oauth_session():
+    return OAuth2Session(
+        GOOGLE_CLIENT_ID,
+        redirect_uri=REDIRECT_URI,
+        scope=["openid", "email", "profile"]
+    )
 
-authenticator = Authenticator(
-    allowed_users=allowed_users,
-    token_key=token_key,
-    secret_path="client_secret_temp.json",  # Use the temp file with client secrets
-    redirect_uri=redirect_uri,
-)
-authenticator.check_auth()
-authenticator.login()
+# Google Login Page
+def login():
+    if "token" not in st.session_state:
+        oauth = create_oauth_session()
+        authorization_url, state = oauth.authorization_url(AUTHORIZATION_URL)
+        st.write(f"[Login with Google]({authorization_url})")
 
-# Show content that requires login
-if st.session_state["connected"]:
-    st.write(f"welcome! {st.session_state['user_info'].get('email')}")
-    if st.button("Log out"):
-        authenticator.logout()
+    else:
+        st.write("Logged in successfully!")
 
-if not st.session_state["connected"]:
-    st.write("you have to log in first ...")
+if __name__ == "__main__":
+    st.title("Login with Google")
+    login()
