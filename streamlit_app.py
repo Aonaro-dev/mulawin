@@ -33,11 +33,13 @@ if 'code' in query_params:
     code = query_params['code'][0]
     
     try:
-        # Exchange the authorization code for an access token
+        # Exchange the authorization code for an access token, sending the client_id and client_secret in the POST body
         token = oauth.fetch_token(
             "https://oauth2.googleapis.com/token",
-            authorization_response=f"{redirect_uri}?code={code}",
+            code=code,
+            client_id=client_id,
             client_secret=client_secret,
+            redirect_uri=redirect_uri,
         )
         
         # Fetch user profile information from Google
@@ -55,7 +57,9 @@ if 'code' in query_params:
         st.error("An error occurred during the login process. Please try again.")
         st.write(f"Error details: {e.error}")
         st.write(f"Error description: {e.description}")
-        st.write(f"Error response: {e.response.json()}")
+        # Check if e.response exists before accessing it
+        if e.response:
+            st.write(f"Error response: {e.response.json()}")
     
 # Display the app content only if the user is logged in
 if 'userinfo' in st.session_state:
