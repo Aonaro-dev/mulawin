@@ -1,14 +1,17 @@
 import streamlit as st
 from firebase_admin import credentials, firestore
-import json
 
-# Use credentials from secrets
+# Extract the Firebase credentials directly from Streamlit secrets
 firebase_credentials = st.secrets["firebase"]
-cred = credentials.Certificate(json.loads(firebase_credentials))
+
+# Pass the credentials as a dictionary directly to Certificate
+cred = credentials.Certificate(firebase_credentials)
 firebase_admin.initialize_app(cred)
 
+# Initialize Firestore
 db = firestore.client()
 
+# Example Firestore document write
 def add_data():
     doc_ref = db.collection("users").document("sample_user")
     doc_ref.set({
