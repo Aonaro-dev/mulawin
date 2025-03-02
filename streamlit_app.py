@@ -29,5 +29,4 @@ def add_data():
 if st.button("Add Data"):
     add_data()
 
-# Remove the temporary JSON file after Firebase is initialized
-os.remove("firebase_credentials_temp.json")
+
