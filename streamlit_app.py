@@ -9,12 +9,8 @@ firebase_credentials = dict(st.secrets["firebase"])  # Convert AttrDict to a dic
 
 # Check if the Firebase app is already initialized
 if not firebase_admin._apps:
-    # Write the credentials to a temporary JSON file
-    with open("firebase_credentials_temp.json", "w") as f:
-        json.dump(firebase_credentials, f)
-
-    # Initialize Firebase with the temporary JSON file
-    cred = credentials.Certificate("firebase_credentials_temp.json")
+    
+    cred = credentials.Certificate(firebase_credentials)
     firebase_admin.initialize_app(cred)
 
 # Initialize Firestore
