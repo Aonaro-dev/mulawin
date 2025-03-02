@@ -27,8 +27,9 @@ if 'userinfo' not in st.session_state:
         st.markdown(f"[Login with Google]({authorization_url})")
 
 # Handle the OAuth callback (when the user is redirected back to the app after login)
-if 'code' in st.experimental_get_query_params():
-    code = st.experimental_get_query_params()['code'][0]
+query_params = st.query_params
+if 'code' in query_params:
+    code = query_params['code'][0]
     
     # Exchange the authorization code for an access token
     token = oauth.fetch_token(
