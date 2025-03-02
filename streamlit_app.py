@@ -1,75 +1,32 @@
 import streamlit as st
-from authlib.integrations.requests_client import OAuth2Session
-from authlib.integrations.base_client.errors import OAuthError
+from auth import Authenticator
 
-# App title
-st.title("Streamlit App with Google Login")
+# Retrieve secrets from Streamlit's secrets management
+allowed_users = st.secrets["ALLOWED_USERS"].split(",")
+token_key = st.secrets["TOKEN_KEY"]
+client_secret = st.secrets["client_secret"]
+redirect_uri = st.secrets["REDIRECT_URI"]
 
-# Google OAuth credentials from Streamlit secrets
-client_id = st.secrets["oauth"]["client_id"]
-client_secret = st.secrets["oauth"]["client_secret"]
-redirect_uri = st.secrets["oauth"]["redirect_uri"]
+st.title("Streamlit Google Auth")
 
-# Initialize OAuth 2.0 session
-oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
+# Write the client secret json data into a temporary file
+with open("client_secret_temp.json", "w") as secret_file:
+    secret_file.write(client_secret)
 
-# Authorization URL
-authorization_url, state = oauth.create_authorization_url(
-    "https://accounts.google.com/o/oauth2/auth",
-    scope=["openid", "email", "profile"],
-    prompt="select_account"
+authenticator = Authenticator(
+    allowed_users=allowed_users,
+    token_key=token_key,
+    secret_path="client_secret_temp.json",  # Use the temp file with client secrets
+    redirect_uri=redirect_uri,
 )
+authenticator.check_auth()
+authenticator.login()
 
-# Display the login button
-if 'userinfo' not in st.session_state:
-    st.write("Please log in to continue:")
-    if st.button("Login with Google"):
-        st.write("Redirecting to Google login...")
-        st.markdown(f"[Login with Google]({authorization_url})")
+# Show content that requires login
+if st.session_state["connected"]:
+    st.write(f"welcome! {st.session_state['user_info'].get('email')}")
+    if st.button("Log out"):
+        authenticator.logout()
 
-# Handle the OAuth callback (when the user is redirected back to the app after login)
-query_params = st.query_params
-if 'code' in query_params:
-    code = query_params['code'][0]  # Extract the authorization code
-    
-    try:
-        # Exchange the authorization code for an access token
-        token = oauth.fetch_token(
-            "https://oauth2.googleapis.com/token",
-            code=code,
-            client_id=client_id,
-            client_secret=client_secret,
-            redirect_uri=redirect_uri,
-        )
-        
-        # Fetch user profile information from Google
-        userinfo = oauth.get("https://www.googleapis.com/oauth2/v3/userinfo").json()
-
-        # Store user info in session state
-        st.session_state['userinfo'] = userinfo
-
-        # Display user info
-        st.success(f"Logged in as {userinfo['name']}")
-        st.image(userinfo['picture'], width=100)
-        
-    except OAuthError as e:
-        # Display a user-friendly error message
-        st.error("An error occurred during the login process. Please try again.")
-        st.write(f"Error details: {e.error}")
-        st.write(f"Error description: {e.description}")
-        # Check if e.response exists before accessing it
-        if hasattr(e, 'response') and e.response:
-            st.write(f"Error response: {e.response.json()}")
-    
-# Display the app content only if the user is logged in
-if 'userinfo' in st.session_state:
-    st.write(f"Welcome, {st.session_state['userinfo']['name']}! Here's the main content of the app:")
-    
-    # Main content of your app goes here
-    st.write("This is your app's main interface, accessible only to logged-in users.")
-    
-    # Add any additional app logic here
-    st.write("You can now show your app's functionality!")
-
-else:
-    st.warning("Please log in to access the app.")
+if not st.session_state["connected"]:
+    st.write("you have to log in first ...")
