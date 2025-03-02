@@ -3,8 +3,8 @@ from firebase_admin import credentials, firestore
 import json
 import os
 
-# Extract the Firebase credentials from Streamlit secrets
-firebase_credentials = st.secrets["firebase"]
+# Extract the Firebase credentials from Streamlit secrets and convert to a regular dict
+firebase_credentials = dict(st.secrets["firebase"])  # Convert AttrDict to a dict
 
 # Write the credentials to a temporary JSON file
 with open("firebase_credentials_temp.json", "w") as f:
