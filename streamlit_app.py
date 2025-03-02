@@ -1,11 +1,17 @@
 import streamlit as st
 from firebase_admin import credentials, firestore
+import json
+import os
 
-# Extract the Firebase credentials directly from Streamlit secrets
+# Extract the Firebase credentials from Streamlit secrets
 firebase_credentials = st.secrets["firebase"]
 
-# Pass the credentials as a dictionary directly to Certificate
-cred = credentials.Certificate(firebase_credentials)
+# Write the credentials to a temporary JSON file
+with open("firebase_credentials_temp.json", "w") as f:
+    json.dump(firebase_credentials, f)
+
+# Initialize Firebase with the temporary JSON file
+cred = credentials.Certificate("firebase_credentials_temp.json")
 firebase_admin.initialize_app(cred)
 
 # Initialize Firestore
@@ -23,3 +29,6 @@ def add_data():
 
 if st.button("Add Data"):
     add_data()
+
+# Remove the temporary JSON file after Firebase is initialized
+os.remove("firebase_credentials_temp.json")
