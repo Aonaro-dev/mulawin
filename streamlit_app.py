@@ -1,12 +1,13 @@
 import streamlit as st
-from authlib.integrations.requests_client import OAuth2Session
 import firebase_admin
 from firebase_admin import credentials, auth
 import pyrebase
 
+# Access secrets from Streamlit Secrets
 firebaseConfig = {
     "apiKey": st.secrets["firebase"]["apiKey"],
     "authDomain": st.secrets["firebase"]["authDomain"],
+    "databaseURL": st.secrets["firebase"]["databaseURL"],
     "projectId": st.secrets["firebase"]["projectId"],
     "storageBucket": st.secrets["firebase"]["storageBucket"],
     "messagingSenderId": st.secrets["firebase"]["messagingSenderId"],
