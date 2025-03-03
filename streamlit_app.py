@@ -68,10 +68,15 @@ def sign_up():
             user = auth_client.create_user_with_email_and_password(email, password)
             user_id = user['localId']
 
-            # Store user details in Firestore with approval set to False
+            # Check if this is the first user (admin)
+            users_ref = db.collection("users").get()
+            is_admin = len(users_ref) == 0  # First user becomes admin
+
+            # Store user details in Firestore with approval set to False and admin role if first user
             db.collection("users").document(user_id).set({
                 "email": email,
-                "approved": False
+                "approved": False,
+                "role": "admin" if is_admin else "user"  # First user is admin, others are normal users
             })
 
             st.success("Account created successfully! Please wait for admin approval.")
@@ -79,6 +84,7 @@ def sign_up():
 
         except Exception as e:
             st.error(f"Sign up failed. Error: {e}")
+
 
 # Streamlit sidebar for navigation
 page = st.sidebar.selectbox("Select Page", ["Login", "Sign Up"])
