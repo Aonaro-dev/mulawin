@@ -1,62 +1,46 @@
 import streamlit as st
-import firebase_admin  # Import firebase_admin
-import pyrebase
-from firebase_admin import credentials, firestore
-import json
-import os
+from authlib.integrations.requests_client import OAuth2Session
+import firebase_admin
+from firebase_admin import credentials, auth
 
-# Extract the Firebase credentials from Streamlit secrets and convert to a regular dict
-firebase_credentials = dict(st.secrets["firebase"])  # Convert AttrDict to a dict
+# Firebase credentials (make sure this is set up correctly)
+firebase_credentials = dict(st.secrets["firebase"])
 
-# Check if the Firebase app is already initialized
+# Initialize Firebase Admin if not already initialized
 if not firebase_admin._apps:
-    
     cred = credentials.Certificate(firebase_credentials)
     firebase_admin.initialize_app(cred)
 
-# Initialize Firestore
-db = firestore.client()
+# Google OAuth Configurations
+client_id = st.secrets["google_oauth"]["client_id"]
+client_secret = st.secrets["google_oauth"]["client_secret"]
+redirect_uri = "https://mulawin-4nj9ywfuvucpowprrjhaky.streamlit.app/"  # Your streamlit app's address
 
-# Example Firestore document write
-def add_data():
-    doc_ref = db.collection("users").document("sample_user")
-    doc_ref.set({
-        "name": "John Doe",
-        "age": 30,
-        "email": "johndoe@example.com"
-    })
-    st.write("Data added to Firestore")
+oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
 
-if st.button("Add Data"):
-    add_data()
+authorization_endpoint = 'https://accounts.google.com/o/oauth2/auth'
+token_endpoint = 'https://accounts.google.com/o/oauth2/token'
 
+# Step 1: User clicks login button
+if st.button('Login with Google'):
+    # Redirect the user to the Google login page
+    uri, state = oauth.create_authorization_url(authorization_endpoint, 
+                                                scope=["openid", "email", "profile"])
+    st.experimental_set_query_params(state=state)
+    st.write(f"Go to the following URL to login: {uri}")
 
-firebase_config = {
-    "apiKey": st.secrets["firebase"]["apiKey"],
-    "authDomain": st.secrets["firebase"]["authDomain"],
-    "projectId": st.secrets["firebase"]["projectId"],
-    "storageBucket": st.secrets["firebase"]["storageBucket"],
-    "messagingSenderId": st.secrets["firebase"]["messagingSenderId"],
-    "appId": st.secrets["firebase"]["appId"],
-    "measurementId": st.secrets["firebase"]["measurementId"],
-    "databaseURL": ""
-}
+# Step 2: After the user logs in and Google redirects back
+code = st.experimental_get_query_params().get('code')
 
-# Initialize pyrebase app
-firebase = pyrebase.initialize_app(firebase_config)
-auth = firebase.auth()
+if code:
+    token = oauth.fetch_token(token_endpoint, code=code, authorization_response=st.request.url)
+    user_info = oauth.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
 
-# Streamlit app for login
-st.title("Login with Google")
+    st.write(f"Logged in as {user_info['email']}")
 
-# Get authentication
-login_button = st.button("Login with Google")
-
-if login_button:
-    # Use Firebase's Google Auth Popup method
-    # This will open the Firebase Auth sign-in popup
+    # Verify token with Firebase Admin
     try:
-        user = auth.sign_in_with_google()
-        st.write(f"Welcome {user['email']}!")
+        decoded_token = auth.verify_id_token(token['id_token'])
+        st.write(f"Firebase User ID: {decoded_token['uid']}")
     except Exception as e:
-        st.error(f"Error during sign-in: {e}")
+        st.error(f"Token verification failed: {e}")
