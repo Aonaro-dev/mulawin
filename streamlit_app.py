@@ -45,16 +45,29 @@ def login():
                 user = auth_client.sign_in_with_email_and_password(email, password)
                 user_id = user['localId']
 
-                # Check if the user is approved in Firestore
+                # Fetch the current user document from Firestore
                 user_doc = db.collection("users").document(user_id).get()
 
-                if user_doc.exists and user_doc.to_dict().get("approved", False):
-                    st.success("Login successful!")
-                    st.write(f"Welcome {user['email']}")
-                    st.experimental_set_query_params(logged_in="true")
-                    st.switch_page("main")
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    approved = user_data.get("approved", False)
+                    role = user_data.get("role", "user")
+
+                    # Admins can bypass the "approved" check
+                    if role == "admin":
+                        st.success("Welcome Admin!")
+                        st.experimental_set_query_params(logged_in="true")
+                        st.switch_page("admin")
+                    elif approved:
+                        st.success("Login successful!")
+                        st.write(f"Welcome {user['email']}")
+                        st.experimental_set_query_params(logged_in="true")
+                        st.switch_page("main")
+                    else:
+                        st.error("Your account is not approved yet. Please contact the admin.")
+
                 else:
-                    st.error("Your account is not approved yet. Please contact the admin.")
+                    st.error("User document not found in the database. Please contact support.")
 
             except Exception as e:
                 # Handle specific errors based on error message
@@ -65,6 +78,7 @@ def login():
                     st.error("Email not found. Please sign up first.")
                 else:
                     st.error(f"Login failed. Error: {error_message}")
+
 
 
 def sign_up():
