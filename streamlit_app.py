@@ -3,7 +3,7 @@ import pyrebase
 from firebase_admin import credentials, firestore
 import firebase_admin
 
-# Access secrets from Streamlit Secrets
+# Firebase configuration
 firebaseConfig = {
     "apiKey": st.secrets["firebase"]["apiKey"],
     "authDomain": st.secrets["firebase"]["authDomain"],
@@ -15,11 +15,11 @@ firebaseConfig = {
     "measurementId": st.secrets["firebase"]["measurementId"]
 }
 
-# Initialize Firebase app for client-side
+# Initialize Firebase
 firebase = pyrebase.initialize_app(firebaseConfig)
 auth_client = firebase.auth()
 
-# Initialize Firebase Admin for server-side
+# Initialize Firebase Admin
 if not firebase_admin._apps:
     cred = credentials.Certificate(dict(st.secrets["firebase"]))
     firebase_admin.initialize_app(cred)
@@ -47,7 +47,7 @@ def login():
                 user = auth_client.sign_in_with_email_and_password(email, password)
                 user_id = user['localId']
 
-                # Fetch user from Firestore
+                # Fetch user data from Firestore
                 user_doc = db.collection("users").document(user_id).get()
 
                 if user_doc.exists:
@@ -56,15 +56,9 @@ def login():
                     role = user_data.get("role", "user")
 
                     if role == "admin" or approved:
-                        st.success(f"Welcome {role.capitalize()}!")
                         st.session_state.logged_in = True
                         st.session_state.role = role
-                        st.experimental_set_query_params(logged_in="true")
-                        
-                        if role == "admin":
-                            st.switch_page("admin")  # Switch to admin page
-                        else:
-                            st.switch_page("main")  # Switch to main user page
+                        st.experimental_rerun()  # Refresh the page
                     else:
                         st.error("Your account is not approved yet. Please contact the admin.")
                 else:
@@ -80,14 +74,14 @@ def sign_up():
 
     if st.button("Sign Up"):
         try:
-            # Firebase sign-up
+            # Create a new user
             user = auth_client.create_user_with_email_and_password(email, password)
             user_id = user['localId']
 
-            # Create Firestore entry for user
+            # Add user to Firestore
             db.collection("users").document(user_id).set({
                 "email": email,
-                "approved": False,  # Admin must approve first
+                "approved": False,
                 "role": "user"
             })
 
@@ -95,9 +89,9 @@ def sign_up():
         except Exception as e:
             st.error(f"Sign up failed. Error: {str(e)}")
 
-# Handle routing
+# Routing logic
 if st.session_state.logged_in:
-    # Show the main or admin pages in the sidebar if logged in
+    # Show the sidebar for logged-in users
     st.sidebar.success(f"Logged in as {st.session_state.role.capitalize()}")
 
     if st.session_state.role == "admin":
@@ -105,17 +99,18 @@ if st.session_state.logged_in:
     else:
         st.sidebar.button("Go to Main Page", on_click=lambda: st.switch_page("main"))
 
-    # Option to log out
+    # Logout button
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.role = None
         st.experimental_rerun()
 
 else:
-    # Show only login and sign-up options in the sidebar
-    page = st.sidebar.radio("Select Action", ["Login", "Sign Up"])
+    # Sidebar for login and signup
+    st.sidebar.title("User Authentication")
+    action = st.sidebar.radio("Select Action", ["Login", "Sign Up"])
 
-    if page == "Login":
+    if action == "Login":
         login()
-    else:
+    elif action == "Sign Up":
         sign_up()
