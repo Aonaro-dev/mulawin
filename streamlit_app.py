@@ -26,7 +26,7 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# Initialize session state
+# Session state initialization for login
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'role' not in st.session_state:
@@ -58,7 +58,7 @@ def login():
                     if role == "admin" or approved:
                         st.session_state.logged_in = True
                         st.session_state.role = role
-                        st.experimental_rerun()  # Refresh the page
+                        st.experimental_rerun()  # Refresh the page to apply login
                     else:
                         st.error("Your account is not approved yet. Please contact the admin.")
                 else:
@@ -89,28 +89,27 @@ def sign_up():
         except Exception as e:
             st.error(f"Sign up failed. Error: {str(e)}")
 
-# Routing logic
-if st.session_state.logged_in:
-    # Show the sidebar for logged-in users
-    st.sidebar.success(f"Logged in as {st.session_state.role.capitalize()}")
+# Multi-page navigation management using st.navigation
+nav = st.navigation()
 
-    if st.session_state.role == "admin":
-        st.sidebar.button("Go to Admin Page", on_click=lambda: st.switch_page("admin"))
-    else:
-        st.sidebar.button("Go to Main Page", on_click=lambda: st.switch_page("main"))
-
-    # Logout button
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.role = None
-        st.experimental_rerun()
+if not st.session_state.logged_in:
+    # Page for unauthenticated users
+    nav.add_page("Login", login)
+    nav.add_page("Sign Up", sign_up)
+    nav.run()  # Display the login/signup navigation pages
 
 else:
-    # Sidebar for login and signup
-    st.sidebar.title("User Authentication")
-    action = st.sidebar.radio("Select Action", ["Login", "Sign Up"])
+    # Show admin page for admins
+    if st.session_state.role == "admin":
+        nav.add_page("Admin Page", "pages/admin.py")
+    
+    # Show main page for other users
+    nav.add_page("Main Page", "pages/main.py")
+    
+    # Add logout button
+    if nav.sidebar_button("Logout"):
+        st.session_state.logged_in = False
+        st.experimental_rerun()
 
-    if action == "Login":
-        login()
-    elif action == "Sign Up":
-        sign_up()
+    # Run the navigation pages for authenticated users
+    nav.run()
