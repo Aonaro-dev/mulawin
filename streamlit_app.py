@@ -19,7 +19,7 @@ redirect_uri = st.secrets["firebase"]["redURL"]  # Your streamlit app's address
 oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
 
 authorization_endpoint = 'https://accounts.google.com/o/oauth2/auth'
-token_endpoint = 'https://accounts.google.com/o/oauth2/token'
+token_endpoint = 'https://oauth2.googleapis.com/token'
 
 # Step 1: User clicks login button
 if st.button('Login with Google'):
@@ -30,7 +30,8 @@ if st.button('Login with Google'):
     st.write(f"Go to the following URL to login: {uri}")
 
 # Step 2: After the user logs in and Google redirects back
-code = st.experimental_get_query_params().get('code')
+query_params = st.experimental_get_query_params()
+code = query_params.get('code')
 
 if code:
     token = oauth.fetch_token(token_endpoint, code=code, authorization_response=st.request.url)
