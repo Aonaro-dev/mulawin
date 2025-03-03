@@ -7,3 +7,4 @@ python-dotenv==1.0.1
 firebase-admin
 pyrebase4
 setuptools
+authlib
