@@ -2,6 +2,22 @@ import streamlit as st
 from authlib.integrations.requests_client import OAuth2Session
 import firebase_admin
 from firebase_admin import credentials, auth
+import pyrebase
+
+firebaseConfig = {
+    "apiKey": st.secrets["firebase"]["apiKey"],
+    "authDomain": st.secrets["firebase"]["authDomain"],
+    "databaseURL": st.secrets["firebase"]["databaseURL"],
+    "projectId": st.secrets["firebase"]["projectId"],
+    "storageBucket": st.secrets["firebase"]["storageBucket"],
+    "messagingSenderId": st.secrets["firebase"]["messagingSenderId"],
+    "appId": st.secrets["firebase"]["appId"],
+    "measurementId": st.secrets["firebase"]["measurementId"]
+}
+
+# Initialize Firebase app for client-side
+firebase = pyrebase.initialize_app(firebaseConfig)
+auth_client = firebase.auth()
 
 # Firebase credentials (make sure this is set up correctly)
 firebase_credentials = dict(st.secrets["firebase"])
