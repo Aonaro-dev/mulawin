@@ -1,6 +1,6 @@
 import streamlit as st
 import firebase_admin
-from firebase_admin import credentials, auth, db
+from firebase_admin import credentials, firestore, auth
 import pyrebase
 
 # Access secrets from Streamlit Secrets
@@ -25,10 +25,10 @@ firebase_credentials = dict(st.secrets["firebase"])
 # Initialize Firebase Admin if not already initialized
 if not firebase_admin._apps:
     cred = credentials.Certificate(firebase_credentials)
-    firebase_admin.initialize_app(cred, {'databaseURL': firebaseConfig['databaseURL']})
+    firebase_admin.initialize_app(cred)
 
-# Firebase Database reference for user data
-ref = db.reference("/users")
+# Initialize Firestore
+db = firestore.client()
 
 def login():
     st.title("Login Page")
@@ -42,10 +42,10 @@ def login():
             user = auth_client.sign_in_with_email_and_password(email, password)
             user_id = user['localId']
 
-            # Check if the user is approved
-            user_data = ref.child(user_id).get()
+            # Check if the user is approved in Firestore
+            user_doc = db.collection("users").document(user_id).get()
 
-            if user_data and user_data.get("approved", False):
+            if user_doc.exists and user_doc.to_dict().get("approved", False):
                 st.success("Login successful!")
                 st.write(f"Welcome {user['email']}")
                 st.experimental_set_query_params(logged_in="true")
@@ -68,8 +68,8 @@ def sign_up():
             user = auth_client.create_user_with_email_and_password(email, password)
             user_id = user['localId']
 
-            # Store user details in Firebase Database with approval set to False
-            ref.child(user_id).set({
+            # Store user details in Firestore with approval set to False
+            db.collection("users").document(user_id).set({
                 "email": email,
                 "approved": False
             })
