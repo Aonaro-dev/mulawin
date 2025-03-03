@@ -32,6 +32,7 @@ if 'logged_in' not in st.session_state:
 if 'role' not in st.session_state:
     st.session_state.role = None
 
+# Function to handle login
 def login():
     st.title("Login Page")
     email = st.text_input("Enter your email")
@@ -71,6 +72,7 @@ def login():
             except Exception as e:
                 st.error(f"Login failed. Error: {str(e)}")
 
+# Function to handle signup
 def sign_up():
     st.title("Sign Up")
     email = st.text_input("Enter your email")
@@ -93,14 +95,27 @@ def sign_up():
         except Exception as e:
             st.error(f"Sign up failed. Error: {str(e)}")
 
-# Route users based on login status
-if not st.session_state.logged_in:
-    st.sidebar.selectbox("Select Page", ["Login", "Sign Up"])
+# Handle routing
+if st.session_state.logged_in:
+    # Show the main or admin pages in the sidebar if logged in
+    st.sidebar.success(f"Logged in as {st.session_state.role.capitalize()}")
 
-    page = st.sidebar.selectbox("Select Action", ["Login", "Sign Up"])
+    if st.session_state.role == "admin":
+        st.sidebar.button("Go to Admin Page", on_click=lambda: st.switch_page("admin"))
+    else:
+        st.sidebar.button("Go to Main Page", on_click=lambda: st.switch_page("main"))
+
+    # Option to log out
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.role = None
+        st.experimental_rerun()
+
+else:
+    # Show only login and sign-up options in the sidebar
+    page = st.sidebar.radio("Select Action", ["Login", "Sign Up"])
+
     if page == "Login":
         login()
     else:
         sign_up()
-else:
-    st.sidebar.success("Logged in!")
