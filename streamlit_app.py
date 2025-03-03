@@ -37,24 +37,35 @@ def login():
     password = st.text_input("Enter your password", type="password")
 
     if st.button("Login"):
-        try:
-            # Sign in with Firebase Auth
-            user = auth_client.sign_in_with_email_and_password(email, password)
-            user_id = user['localId']
+        if not email or not password:
+            st.warning("Please enter both email and password.")
+        else:
+            try:
+                # Sign in with Firebase Auth
+                user = auth_client.sign_in_with_email_and_password(email, password)
+                user_id = user['localId']
 
-            # Check if the user is approved in Firestore
-            user_doc = db.collection("users").document(user_id).get()
+                # Check if the user is approved in Firestore
+                user_doc = db.collection("users").document(user_id).get()
 
-            if user_doc.exists and user_doc.to_dict().get("approved", False):
-                st.success("Login successful!")
-                st.write(f"Welcome {user['email']}")
-                st.experimental_set_query_params(logged_in="true")
-                st.switch_page("main")
-            else:
-                st.error("Your account is not approved yet. Please contact the admin.")
+                if user_doc.exists and user_doc.to_dict().get("approved", False):
+                    st.success("Login successful!")
+                    st.write(f"Welcome {user['email']}")
+                    st.experimental_set_query_params(logged_in="true")
+                    st.switch_page("main")
+                else:
+                    st.error("Your account is not approved yet. Please contact the admin.")
 
-        except Exception as e:
-            st.error(f"Login failed. Error: {e}")
+            except Exception as e:
+                # Handle specific errors based on error message
+                error_message = str(e)
+                if "INVALID_LOGIN_CREDENTIALS" in error_message:
+                    st.error("Invalid login credentials. Please check your email and password.")
+                elif "EMAIL_NOT_FOUND" in error_message:
+                    st.error("Email not found. Please sign up first.")
+                else:
+                    st.error(f"Login failed. Error: {error_message}")
+
 
 def sign_up():
     st.title("Sign Up")
