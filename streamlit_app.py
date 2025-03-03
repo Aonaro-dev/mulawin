@@ -26,19 +26,24 @@ if st.button('Login with Google'):
     # Redirect the user to the Google login page
     uri, state = oauth.create_authorization_url(authorization_endpoint, 
                                                 scope=["openid", "email", "profile"])
+    # Set the state in the URL to keep track of the flow
     st.experimental_set_query_params(state=state)
     st.write(f"Go to the following URL to login: {uri}")
 
 # Step 2: After the user logs in and Google redirects back
-code = st.experimental_get_query_params().get('code')
+query_params = st.experimental_get_query_params()
+code = query_params.get('code')
 
 if code:
-    token = oauth.fetch_token(token_endpoint, code=code, authorization_response=st.request.url)
+    # Exchange the authorization code for tokens
+    token = oauth.fetch_token(token_endpoint, code=code[0], authorization_response=redirect_uri)
+    
+    # Fetch user info from Google
     user_info = oauth.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
 
     st.write(f"Logged in as {user_info['email']}")
 
-    # Verify token with Firebase Admin
+    # Verify the ID token with Firebase Admin
     try:
         decoded_token = auth.verify_id_token(token['id_token'])
         st.write(f"Firebase User ID: {decoded_token['uid']}")
