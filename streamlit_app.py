@@ -14,7 +14,7 @@ if not firebase_admin._apps:
 # Google OAuth Configurations
 client_id = st.secrets["google_oauth"]["client_id"]
 client_secret = st.secrets["google_oauth"]["client_secret"]
-redirect_uri = "https://mulawin-4nj9ywfuvucpowprrjhaky.streamlit.app/"  # Your streamlit app's address
+redirect_uri = st.secrets["firebase"]["redURL"]  # Your streamlit app's address
 
 oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
 
