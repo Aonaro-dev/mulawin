@@ -1,7 +1,7 @@
 import streamlit as st
-import firebase_admin
-from firebase_admin import credentials, firestore, auth
 import pyrebase
+from firebase_admin import credentials, firestore
+import firebase_admin
 
 # Access secrets from Streamlit Secrets
 firebaseConfig = {
@@ -19,20 +19,21 @@ firebaseConfig = {
 firebase = pyrebase.initialize_app(firebaseConfig)
 auth_client = firebase.auth()
 
-# Firebase credentials
-firebase_credentials = dict(st.secrets["firebase"])
-
-# Initialize Firebase Admin if not already initialized
+# Initialize Firebase Admin for server-side
 if not firebase_admin._apps:
-    cred = credentials.Certificate(firebase_credentials)
+    cred = credentials.Certificate(dict(st.secrets["firebase"]))
     firebase_admin.initialize_app(cred)
 
-# Initialize Firestore
 db = firestore.client()
+
+# Initialize session state
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'role' not in st.session_state:
+    st.session_state.role = None
 
 def login():
     st.title("Login Page")
-
     email = st.text_input("Enter your email")
     password = st.text_input("Enter your password", type="password")
 
@@ -41,11 +42,11 @@ def login():
             st.warning("Please enter both email and password.")
         else:
             try:
-                # Sign in with Firebase Auth
+                # Firebase login
                 user = auth_client.sign_in_with_email_and_password(email, password)
                 user_id = user['localId']
 
-                # Fetch the current user document from Firestore
+                # Fetch user from Firestore
                 user_doc = db.collection("users").document(user_id).get()
 
                 if user_doc.exists:
@@ -53,73 +54,53 @@ def login():
                     approved = user_data.get("approved", False)
                     role = user_data.get("role", "user")
 
-                    # Admins can bypass the "approved" check
-                    if role == "admin":
-                        st.success("Welcome Admin!")
+                    if role == "admin" or approved:
+                        st.success(f"Welcome {role.capitalize()}!")
+                        st.session_state.logged_in = True
+                        st.session_state.role = role
                         st.experimental_set_query_params(logged_in="true")
-                        st.switch_page("admin")
-                    elif approved:
-                        st.success("Login successful!")
-                        st.write(f"Welcome {user['email']}")
-                        st.experimental_set_query_params(logged_in="true")
-                        st.switch_page("main")
+                        
+                        if role == "admin":
+                            st.switch_page("admin")  # Switch to admin page
+                        else:
+                            st.switch_page("main")  # Switch to main user page
                     else:
                         st.error("Your account is not approved yet. Please contact the admin.")
-
                 else:
-                    st.error("User document not found in the database. Please contact support.")
-
+                    st.error("User not found in the database.")
             except Exception as e:
-                # Handle specific errors based on error message
-                error_message = str(e)
-                if "INVALID_LOGIN_CREDENTIALS" in error_message:
-                    st.error("Invalid login credentials. Please check your email and password.")
-                elif "EMAIL_NOT_FOUND" in error_message:
-                    st.error("Email not found. Please sign up first.")
-                else:
-                    st.error(f"Login failed. Error: {error_message}")
-
-
+                st.error(f"Login failed. Error: {str(e)}")
 
 def sign_up():
     st.title("Sign Up")
-
     email = st.text_input("Enter your email")
     password = st.text_input("Enter your password", type="password")
 
     if st.button("Sign Up"):
-        if not email or not password:
-            st.warning("Please enter both email and password.")
-        else:
-            try:
-                # Create a new user with Firebase Auth
-                user = auth_client.create_user_with_email_and_password(email, password)
-                user_id = user['localId']
+        try:
+            # Firebase sign-up
+            user = auth_client.create_user_with_email_and_password(email, password)
+            user_id = user['localId']
 
-                # Store user details in Firestore with approval set to False
-                db.collection("users").document(user_id).set({
-                    "email": email,
-                    "approved": False,
-                    "role": "user"
-                })
+            # Create Firestore entry for user
+            db.collection("users").document(user_id).set({
+                "email": email,
+                "approved": False,  # Admin must approve first
+                "role": "user"
+            })
 
-                st.success("Account created successfully! Please wait for admin approval.")
-                st.write(f"Welcome {user['email']}")
+            st.success("Account created. Wait for admin approval.")
+        except Exception as e:
+            st.error(f"Sign up failed. Error: {str(e)}")
 
-            except Exception as e:
-                # Handle specific errors based on error message
-                error_message = str(e)
-                if "EMAIL_EXISTS" in error_message:
-                    st.error("The email already exists. Please log in or use a different email.")
-                else:
-                    st.error(f"Sign up failed. Error: {error_message}")
+# Route users based on login status
+if not st.session_state.logged_in:
+    st.sidebar.selectbox("Select Page", ["Login", "Sign Up"])
 
-
-
-# Streamlit sidebar for navigation
-page = st.sidebar.selectbox("Select Page", ["Login", "Sign Up"])
-
-if page == "Login":
-    login()
-elif page == "Sign Up":
-    sign_up()
+    page = st.sidebar.selectbox("Select Action", ["Login", "Sign Up"])
+    if page == "Login":
+        login()
+    else:
+        sign_up()
+else:
+    st.sidebar.success("Logged in!")
