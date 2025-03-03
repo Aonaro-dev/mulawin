@@ -11,37 +11,42 @@ if not firebase_admin._apps:
     cred = credentials.Certificate(firebase_credentials)
     firebase_admin.initialize_app(cred)
 
-# Google OAuth Configurations
-client_id = st.secrets["google_oauth"]["client_id"]
-client_secret = st.secrets["google_oauth"]["client_secret"]
-redirect_uri = st.secrets["firebase"]["redURL"]  # Your streamlit app's address
+def login():
+    st.title("Login Page")
 
-oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
+    email = st.text_input("Enter your email")
+    password = st.text_input("Enter your password", type="password")
 
-authorization_endpoint = 'https://accounts.google.com/o/oauth2/auth'
-token_endpoint = 'https://oauth2.googleapis.com/token'
+    if st.button("Login"):
+        try:
+            # Sign in with Firebase Auth
+            user = auth_client.sign_in_with_email_and_password(email, password)
+            st.success("Login successful!")
+            st.write(f"Welcome {user['email']}")
 
-# Step 1: User clicks login button
-if st.button('Login with Google'):
-    # Redirect the user to the Google login page
-    uri, state = oauth.create_authorization_url(authorization_endpoint, 
-                                                scope=["openid", "email", "profile"])
-    st.experimental_set_query_params(state=state)
-    st.write(f"Go to the following URL to login: {uri}")
+        except:
+            st.error("Login failed. Please check your credentials.")
 
-# Step 2: After the user logs in and Google redirects back
-query_params = st.experimental_get_query_params()
-code = query_params.get('code')
+def sign_up():
+    st.title("Sign Up")
 
-if code:
-    token = oauth.fetch_token(token_endpoint, code=code, authorization_response=st.request.url)
-    user_info = oauth.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
+    email = st.text_input("Enter your email")
+    password = st.text_input("Enter your password", type="password")
 
-    st.write(f"Logged in as {user_info['email']}")
+    if st.button("Sign Up"):
+        try:
+            # Create a new user with Firebase Auth
+            user = auth_client.create_user_with_email_and_password(email, password)
+            st.success("Account created successfully!")
+            st.write(f"Welcome {user['email']}")
 
-    # Verify token with Firebase Admin
-    try:
-        decoded_token = auth.verify_id_token(token['id_token'])
-        st.write(f"Firebase User ID: {decoded_token['uid']}")
-    except Exception as e:
-        st.error(f"Token verification failed: {e}")
+        except:
+            st.error("Sign up failed. Please try again.")
+
+# Streamlit sidebar for navigation
+page = st.sidebar.selectbox("Select Page", ["Login", "Sign Up"])
+
+if page == "Login":
+    login()
+elif page == "Sign Up":
+    sign_up()
