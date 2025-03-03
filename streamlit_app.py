@@ -3,8 +3,11 @@ from authlib.integrations.requests_client import OAuth2Session
 import firebase_admin
 from firebase_admin import credentials, auth
 
-# Firebase credentials (make sure this is set up correctly)
+# Firebase credentials (ensure these are correct)
 firebase_credentials = dict(st.secrets["firebase"])
+
+# Firebase Project ID
+firebase_project_id = st.secrets["firebase"]["project_id"]
 
 # Initialize Firebase Admin if not already initialized
 if not firebase_admin._apps:
@@ -14,7 +17,7 @@ if not firebase_admin._apps:
 # Google OAuth Configurations
 client_id = st.secrets["google_oauth"]["client_id"]
 client_secret = st.secrets["google_oauth"]["client_secret"]
-redirect_uri = "https://mulawin-4nj9ywfuvucpowprrjhaky.streamlit.app/"  # Your streamlit app's address
+redirect_uri = "http://localhost:8501"  # Your streamlit app's address
 
 oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
 
@@ -26,7 +29,6 @@ if st.button('Login with Google'):
     # Redirect the user to the Google login page
     uri, state = oauth.create_authorization_url(authorization_endpoint, 
                                                 scope=["openid", "email", "profile"])
-    # Set the state in the URL to keep track of the flow
     st.experimental_set_query_params(state=state)
     st.write(f"Go to the following URL to login: {uri}")
 
@@ -43,9 +45,9 @@ if code:
 
     st.write(f"Logged in as {user_info['email']}")
 
-    # Verify the ID token with Firebase Admin
+    # Verify the ID token with Firebase Admin, using the project_id
     try:
-        decoded_token = auth.verify_id_token(token['id_token'])
+        decoded_token = auth.verify_id_token(token['id_token'], audience=firebase_project_id)
         st.write(f"Firebase User ID: {decoded_token['uid']}")
     except Exception as e:
         st.error(f"Token verification failed: {e}")
