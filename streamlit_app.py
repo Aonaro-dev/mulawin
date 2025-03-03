@@ -1,53 +1,83 @@
 import streamlit as st
-from authlib.integrations.requests_client import OAuth2Session
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import auth, exceptions, credentials, initialize_app
+import asyncio
+from httpx_oauth.clients.google import GoogleOAuth2
 
-# Firebase credentials (ensure these are correct)
 firebase_credentials = dict(st.secrets["firebase"])
 
-# Firebase Project ID
-firebase_project_id = st.secrets["firebase"]["project_id"]
+# Initialize Firebase app
+cred = credentials.Certificate(firebase_credentials)
+try:
+    firebase_admin.get_app()
+except ValueError as e:
+    initialize_app(cred)
 
-# Initialize Firebase Admin if not already initialized
-if not firebase_admin._apps:
-    cred = credentials.Certificate(firebase_credentials)
-    firebase_admin.initialize_app(cred)
-
-# Google OAuth Configurations
+# Initialize Google OAuth2 client
 client_id = st.secrets["google_oauth"]["client_id"]
 client_secret = st.secrets["google_oauth"]["client_secret"]
-redirect_uri = "http://localhost:8501"  # Your streamlit app's address
+redirect_url = "https://mulawin-4nj9ywfuvucpowprrjhaky.streamlit.app/"  # Your redirect URL
 
-oauth = OAuth2Session(client_id, client_secret, redirect_uri=redirect_uri)
+client = GoogleOAuth2(client_id=client_id, client_secret=client_secret)
 
-authorization_endpoint = 'https://accounts.google.com/o/oauth2/auth'
-token_endpoint = 'https://accounts.google.com/o/oauth2/token'
 
-# Step 1: User clicks login button
-if st.button('Login with Google'):
-    # Redirect the user to the Google login page
-    uri, state = oauth.create_authorization_url(authorization_endpoint, 
-                                                scope=["openid", "email", "profile"])
-    st.experimental_set_query_params(state=state)
-    st.write(f"Go to the following URL to login: {uri}")
+st.session_state.email = ''
 
-# Step 2: After the user logs in and Google redirects back
-query_params = st.experimental_get_query_params()
-code = query_params.get('code')
 
-if code:
-    # Exchange the authorization code for tokens
-    token = oauth.fetch_token(token_endpoint, code=code[0], authorization_response=redirect_uri)
-    
-    # Fetch user info from Google
-    user_info = oauth.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
 
-    st.write(f"Logged in as {user_info['email']}")
+async def get_access_token(client: GoogleOAuth2, redirect_url: str, code: str):
+    return await client.get_access_token(code, redirect_url)
 
-    # Verify the ID token with Firebase Admin, using the project_id
+async def get_email(client: GoogleOAuth2, token: str):
+    user_id, user_email = await client.get_id_email(token)
+    return user_id, user_email
+
+def get_logged_in_user_email():
     try:
-        decoded_token = auth.verify_id_token(token['id_token'], audience=firebase_project_id)
-        st.write(f"Firebase User ID: {decoded_token['uid']}")
-    except Exception as e:
-        st.error(f"Token verification failed: {e}")
+        query_params = st.experimental_get_query_params()
+        code = query_params.get('code')
+        if code:
+            token = asyncio.run(get_access_token(client, redirect_url, code))
+            st.experimental_set_query_params()
+
+            if token:
+                user_id, user_email = asyncio.run(get_email(client, token['access_token']))
+                if user_email:
+                    try:
+                        user = auth.get_user_by_email(user_email)
+                    except exceptions.FirebaseError:
+                        user = auth.create_user(email=user_email)
+                    st.session_state.email = user.email
+                    return user.email
+        return None
+    except:
+        pass
+
+
+def show_login_button():
+    authorization_url = asyncio.run(client.get_authorization_url(
+        redirect_url,
+        scope=["email", "profile"],
+        extras_params={"access_type": "offline"},
+    ))
+    st.markdown(f'<a href="{authorization_url}" target="_self">Login</a>', unsafe_allow_html=True)
+    get_logged_in_user_email()
+
+
+   
+
+def app():
+    st.title('Welcome!')
+    if not st.session_state.email:
+        get_logged_in_user_email()
+        if not st.session_state.email:
+
+            show_login_button()
+
+    if st.session_state.email:
+        st.write(st.session_state.email)
+        if st.button("Logout", type="primary", key="logout_non_required"):
+            st.session_state.email = ''
+            st.rerun()
+
+app()
