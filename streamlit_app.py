@@ -74,27 +74,32 @@ def sign_up():
     password = st.text_input("Enter your password", type="password")
 
     if st.button("Sign Up"):
-        try:
-            # Create a new user with Firebase Auth
-            user = auth_client.create_user_with_email_and_password(email, password)
-            user_id = user['localId']
+        if not email or not password:
+            st.warning("Please enter both email and password.")
+        else:
+            try:
+                # Create a new user with Firebase Auth
+                user = auth_client.create_user_with_email_and_password(email, password)
+                user_id = user['localId']
 
-            # Check if this is the first user (admin)
-            users_ref = db.collection("users").get()
-            is_admin = len(users_ref) == 0  # First user becomes admin
+                # Store user details in Firestore with approval set to False
+                db.collection("users").document(user_id).set({
+                    "email": email,
+                    "approved": False,
+                    "role": "user"
+                })
 
-            # Store user details in Firestore with approval set to False and admin role if first user
-            db.collection("users").document(user_id).set({
-                "email": email,
-                "approved": False,
-                "role": "admin" if is_admin else "user"  # First user is admin, others are normal users
-            })
+                st.success("Account created successfully! Please wait for admin approval.")
+                st.write(f"Welcome {user['email']}")
 
-            st.success("Account created successfully! Please wait for admin approval.")
-            st.write(f"Welcome {user['email']}")
+            except Exception as e:
+                # Handle specific errors based on error message
+                error_message = str(e)
+                if "EMAIL_EXISTS" in error_message:
+                    st.error("The email already exists. Please log in or use a different email.")
+                else:
+                    st.error(f"Sign up failed. Error: {error_message}")
 
-        except Exception as e:
-            st.error(f"Sign up failed. Error: {e}")
 
 
 # Streamlit sidebar for navigation
